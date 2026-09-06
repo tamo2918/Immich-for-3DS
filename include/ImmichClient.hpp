@@ -45,6 +45,22 @@ enum class ImmichError {
     OUT_OF_MEMORY
 };
 
+struct ImmichAssetInfo {
+    std::string id;
+    std::string type; // "IMAGE", "VIDEO", "OTHER"
+    std::string originalFileName;
+    std::string originalMimeType;
+    std::string fileCreatedAt;
+    std::string fileModifiedAt;
+    std::string localDateTime;
+    std::string duration;
+    bool isArchived = false;
+    bool isTrashed = false;
+    std::string visibility;
+    bool hasMetadata = false;
+    std::string thumbhash;
+};
+
 class ImmichClient {
 public:
     ImmichClient(const std::string& serverUrl, const std::string& apiKey, bool sslVerify = true, int timeoutSec = 15);
@@ -66,7 +82,8 @@ public:
                             void (*progressCallback)(size_t now, size_t total, void* user) = nullptr,
                             void* callbackUser = nullptr);
 
-    // Gallery
+    // Gallery & Asset Info
+    ImmichError getAssetInfo(const std::string& assetId, ImmichAssetInfo& outInfo);
     ImmichError searchAssets(int page, int size, std::vector<RemoteAsset>& outAssets, int& outTotal);
     ImmichError getAssetThumbnail(const std::string& assetId, const std::string& size, std::vector<uint8_t>& outBytes);
 

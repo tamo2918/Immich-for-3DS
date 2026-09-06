@@ -379,7 +379,12 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
         curl_mime_type(part, "image/jpeg");
     }
 
-    // 2. fileCreatedAt & fileModifiedAt
+    // 2. filename form field: explicitly pass the exact filename with extension
+    part = curl_mime_addpart(mime);
+    curl_mime_name(part, "filename");
+    curl_mime_data(part, photo.filename.c_str(), CURL_ZERO_TERMINATED);
+
+    // 3. fileCreatedAt & fileModifiedAt
     std::string isoTime = photo.getIsoTime();
     part = curl_mime_addpart(mime);
     curl_mime_name(part, "fileCreatedAt");
@@ -389,7 +394,12 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
     curl_mime_name(part, "fileModifiedAt");
     curl_mime_data(part, isoTime.c_str(), CURL_ZERO_TERMINATED);
 
-    // 3. isFavorite
+    // 4. visibility: ensure asset appears on timeline!
+    part = curl_mime_addpart(mime);
+    curl_mime_name(part, "visibility");
+    curl_mime_data(part, "timeline", CURL_ZERO_TERMINATED);
+
+    // 5. isFavorite
     part = curl_mime_addpart(mime);
     curl_mime_name(part, "isFavorite");
     curl_mime_data(part, "false", CURL_ZERO_TERMINATED);
@@ -399,6 +409,10 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
     std::string keyHeader = "x-api-key: " + m_apiKey;
     headers = curl_slist_append(headers, keyHeader.c_str());
     headers = curl_slist_append(headers, "Accept: application/json");
+    if (!photo.sha1.empty()) {
+        std::string checksumHeader = "x-immich-checksum: " + photo.sha1;
+        headers = curl_slist_append(headers, checksumHeader.c_str());
+    }
 
     std::string response;
     setupCommonCurl(curl, url, headers);
@@ -427,7 +441,13 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
     }
 
-    Logger::info("Uploading %s (%zu bytes) to %s...", photo.filename.c_str(), photo.fileSize, url.c_str());
+    if (photo.mediaType == MediaType::VIDEO) {
+        Logger::info("[VIDEO UPLOAD START] Path: %s, Size: %zu, UploadFilename: %s, MIME: video/x-msvideo, CreatedAt: %s",
+                     photo.path.c_str(), photo.fileSize, photo.filename.c_str(), isoTime.c_str());
+    } else {
+        Logger::info("Uploading %s (%zu bytes) to %s...", photo.filename.c_str(), photo.fileSize, url.c_str());
+    }
+
     CURLcode res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
@@ -456,6 +476,11 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
         return ImmichError::SERVER_ERROR;
     }
 
+    // In Immich v3: HTTP 200 = duplicate, HTTP 201 = created
+    if (m_lastHttpCode == 200) {
+        outDuplicate = true;
+    }
+
     cJSON* root = cJSON_Parse(response.c_str());
     if (root) {
         cJSON* idVal = cJSON_GetObjectItem(root, "id");
@@ -466,11 +491,127 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
         if (dupVal && cJSON_IsBool(dupVal)) {
             outDuplicate = cJSON_IsTrue(dupVal);
         }
+        cJSON* statusVal = cJSON_GetObjectItem(root, "status");
+        if (statusVal && cJSON_IsString(statusVal) && statusVal->valuestring) {
+            if (strcmp(statusVal->valuestring, "duplicate") == 0) {
+                outDuplicate = true;
+            }
+        }
         cJSON_Delete(root);
     }
 
-    Logger::info("Upload successful! Asset ID: %s (Duplicate: %s)",
-                 outAssetId.c_str(), outDuplicate ? "true" : "false");
+    if (outAssetId.empty()) {
+        m_lastError = "Server response missing asset ID: " + response;
+        Logger::error("%s", m_lastError.c_str());
+        return ImmichError::SERVER_ERROR;
+    }
+
+    if (photo.mediaType == MediaType::VIDEO) {
+        Logger::info("[VIDEO UPLOAD RESULT] HTTP: %ld, Asset ID: %s, Duplicate: %s",
+                     m_lastHttpCode, outAssetId.c_str(), outDuplicate ? "true" : "false");
+    } else {
+        Logger::info("Upload successful! Asset ID: %s (Duplicate: %s)",
+                     outAssetId.c_str(), outDuplicate ? "true" : "false");
+    }
+
+    return ImmichError::SUCCESS;
+}
+
+ImmichError ImmichClient::getAssetInfo(const std::string& assetId, ImmichAssetInfo& outInfo) {
+    m_lastError.clear();
+    m_lastHttpCode = 0;
+    outInfo = ImmichAssetInfo();
+
+    if (assetId.empty()) {
+        m_lastError = "Empty asset ID";
+        return ImmichError::INVALID_JSON;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) return ImmichError::NETWORK_ERROR;
+
+    std::string url = m_serverUrl + "/api/assets/" + assetId;
+    struct curl_slist* headers = nullptr;
+    std::string keyHeader = "x-api-key: " + m_apiKey;
+    headers = curl_slist_append(headers, keyHeader.c_str());
+    headers = curl_slist_append(headers, "Accept: application/json");
+
+    std::string response;
+    setupCommonCurl(curl, url, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stringWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        m_lastError = curl_easy_strerror(res);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        return ImmichError::NETWORK_ERROR;
+    }
+
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &m_lastHttpCode);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (m_lastHttpCode == 401) return ImmichError::UNAUTHORIZED;
+    if (m_lastHttpCode == 403) return ImmichError::FORBIDDEN;
+    if (m_lastHttpCode != 200) {
+        m_lastError = "HTTP " + std::to_string(m_lastHttpCode) + ": " + response;
+        return ImmichError::HTTP_ERROR;
+    }
+
+    cJSON* root = cJSON_Parse(response.c_str());
+    if (!root) {
+        m_lastError = "Invalid JSON in getAssetInfo response";
+        return ImmichError::INVALID_JSON;
+    }
+
+    cJSON* val = cJSON_GetObjectItem(root, "id");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.id = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "type");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.type = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "originalFileName");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.originalFileName = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "originalMimeType");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.originalMimeType = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "fileCreatedAt");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.fileCreatedAt = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "fileModifiedAt");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.fileModifiedAt = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "localDateTime");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.localDateTime = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "duration");
+    if (val) {
+        if (cJSON_IsString(val) && val->valuestring) {
+            outInfo.duration = val->valuestring;
+        } else if (cJSON_IsNumber(val)) {
+            outInfo.duration = std::to_string(val->valuedouble);
+        }
+    }
+
+    val = cJSON_GetObjectItem(root, "isArchived");
+    if (val && cJSON_IsBool(val)) outInfo.isArchived = cJSON_IsTrue(val);
+
+    val = cJSON_GetObjectItem(root, "isTrashed");
+    if (val && cJSON_IsBool(val)) outInfo.isTrashed = cJSON_IsTrue(val);
+
+    val = cJSON_GetObjectItem(root, "visibility");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.visibility = val->valuestring;
+
+    val = cJSON_GetObjectItem(root, "hasMetadata");
+    if (val && cJSON_IsBool(val)) outInfo.hasMetadata = cJSON_IsTrue(val);
+
+    val = cJSON_GetObjectItem(root, "thumbhash");
+    if (val && cJSON_IsString(val) && val->valuestring) outInfo.thumbhash = val->valuestring;
+
+    cJSON_Delete(root);
     return ImmichError::SUCCESS;
 }
 

@@ -259,24 +259,52 @@ bool SyncManager::performSync() {
     for (const auto& photo : m_unsyncedPhotos) {
         auto it = resultMap.find(photo.filename);
         if (it != resultMap.end() && it->second.action == "reject" && it->second.reason == "duplicate") {
-            // Already on server! Record in sync database
-            SyncRecord rec;
-            rec.path = photo.path;
-            rec.filename = photo.filename;
-            rec.fileSize = photo.fileSize;
-            rec.modTime = photo.modTime;
-            rec.sha1 = photo.sha1;
-            rec.assetId = it->second.assetId;
-            rec.mediaType = photo.mediaType;
+            bool validDuplicate = true;
+            if (photo.mediaType == MediaType::VIDEO) {
+                ImmichAssetInfo assetInfo;
+                ImmichError infoErr = m_client.getAssetInfo(it->second.assetId, assetInfo);
+                if (infoErr == ImmichError::SUCCESS) {
+                    Logger::info("[VIDEO DUPLICATE CHECK] Server Asset ID: %s, Type: %s, OriginalFileName: %s, MimeType: %s, CreatedAt: %s, Visibility: %s, Trashed: %s",
+                                 assetInfo.id.c_str(), assetInfo.type.c_str(), assetInfo.originalFileName.c_str(),
+                                 assetInfo.originalMimeType.c_str(), assetInfo.fileCreatedAt.c_str(),
+                                 assetInfo.visibility.c_str(), assetInfo.isTrashed ? "true" : "false");
+                    if (assetInfo.isTrashed) {
+                        Logger::warn("Server reported duplicate for %s (Asset ID: %s), but the asset is in trash! Re-uploading.",
+                                     photo.filename.c_str(), it->second.assetId.c_str());
+                        validDuplicate = false;
+                    } else if (assetInfo.type != "VIDEO") {
+                        Logger::warn("Server reported duplicate for %s (Asset ID: %s), but asset type is '%s' (not VIDEO)! Re-uploading.",
+                                     photo.filename.c_str(), it->second.assetId.c_str(), assetInfo.type.c_str());
+                        validDuplicate = false;
+                    }
+                } else {
+                    Logger::warn("Could not query duplicate asset info for %s (Asset ID: %s): %s",
+                                 photo.filename.c_str(), it->second.assetId.c_str(), m_client.getLastError().c_str());
+                }
+            }
 
-            time_t now = time(nullptr);
-            char tbuf[32];
-            strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
-            rec.syncedAt = tbuf;
+            if (validDuplicate) {
+                // Already valid on server! Record in sync database
+                SyncRecord rec;
+                rec.path = photo.path;
+                rec.filename = photo.filename;
+                rec.fileSize = photo.fileSize;
+                rec.modTime = photo.modTime;
+                rec.sha1 = photo.sha1;
+                rec.assetId = it->second.assetId;
+                rec.mediaType = photo.mediaType;
 
-            m_syncRecords[rec.filename] = rec;
-            Logger::info("Skipped duplicate on server: %s (Asset ID: %s)",
-                         photo.filename.c_str(), rec.assetId.c_str());
+                time_t now = time(nullptr);
+                char tbuf[32];
+                strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+                rec.syncedAt = tbuf;
+
+                m_syncRecords[rec.filename] = rec;
+                Logger::info("Skipped duplicate on server: %s (Asset ID: %s)",
+                             photo.filename.c_str(), rec.assetId.c_str());
+            } else {
+                actuallyNeedUpload.push_back(photo);
+            }
         } else {
             actuallyNeedUpload.push_back(photo);
         }
@@ -326,7 +354,38 @@ bool SyncManager::performSync() {
             return false;
         }
 
-        // Successfully uploaded!
+        // Verification phase for uploaded asset
+        ImmichAssetInfo assetInfo;
+        ImmichError infoErr = m_client.getAssetInfo(assetId, assetInfo);
+        if (infoErr == ImmichError::SUCCESS) {
+            if (photo.mediaType == MediaType::VIDEO) {
+                Logger::info("[VIDEO ASSET VERIFIED] ID: %s", assetInfo.id.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] Type: %s", assetInfo.type.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] OriginalFileName: %s", assetInfo.originalFileName.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] MimeType: %s", assetInfo.originalMimeType.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] CreatedAt: %s", assetInfo.fileCreatedAt.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] LocalDateTime: %s", assetInfo.localDateTime.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] Visibility: %s", assetInfo.visibility.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] Duration: %s", assetInfo.duration.c_str());
+                Logger::info("[VIDEO ASSET VERIFIED] Trashed: %s", assetInfo.isTrashed ? "true" : "false");
+
+                if (assetInfo.type != "VIDEO") {
+                    m_lastError = "Immich did not recognize uploaded file as VIDEO (type is '" + assetInfo.type + "')";
+                    Logger::error("[VIDEO ASSET ERROR] %s: %s", photo.filename.c_str(), m_lastError.c_str());
+                    m_state = SyncState::FAILED;
+                    saveSyncDb();
+                    return false;
+                }
+            } else {
+                Logger::info("[IMAGE ASSET VERIFIED] ID: %s, Type: %s, CreatedAt: %s",
+                             assetInfo.id.c_str(), assetInfo.type.c_str(), assetInfo.fileCreatedAt.c_str());
+            }
+        } else {
+            Logger::warn("Asset verification query failed for %s (Asset ID: %s): %s",
+                         photo.filename.c_str(), assetId.c_str(), m_client.getLastError().c_str());
+        }
+
+        // Successfully uploaded and verified!
         SyncRecord rec;
         rec.path = photo.path;
         rec.filename = photo.filename;

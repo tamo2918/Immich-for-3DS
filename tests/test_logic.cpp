@@ -216,12 +216,30 @@ void testSyncManager() {
     std::cout << "  SyncManager test passed (photo & video records verified in sync.json)!" << std::endl;
 }
 
+void testIsoTime() {
+    std::cout << "[TEST] Running PhotoInfo getIsoTime tests..." << std::endl;
+    PhotoInfo p;
+    // Test normal valid timestamp (2023-05-15 12:00:00 UTC = 1684152000)
+    p.modTime = 1684152000;
+    std::string iso = p.getIsoTime();
+    assert(iso == "2023-05-15T12:00:00Z");
+
+    // Test zero / invalid timestamp (1970-01-01) -> must fallback to current time, never 1970
+    p.modTime = 0;
+    std::string fallbackIso = p.getIsoTime();
+    assert(fallbackIso.find("1970") == std::string::npos);
+    assert(fallbackIso.find("1980") == std::string::npos);
+    std::cout << "  Valid ISO: " << iso << ", Fallback ISO: " << fallbackIso << std::endl;
+}
+
 int main() {
     Logger::init("");
     testSha1();
     testConfig();
     testPhotoScanner();
     testSyncManager();
+    testIsoTime();
     std::cout << "\n>>> ALL HOST LOGIC TESTS PASSED SUCCESSFULLY! <<<" << std::endl;
     return 0;
 }
+

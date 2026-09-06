@@ -8,7 +8,13 @@
 
 std::string PhotoInfo::getIsoTime() const {
     char buf[32];
-    struct tm* tm_info = gmtime(&modTime);
+    time_t t = modTime;
+    // If modTime is 0, invalid, or pre-2000 (FAT epoch 1980 or Unix epoch 1970),
+    // fallback to current time so the media is not lost in 1970 on the Immich timeline.
+    if (t <= 946684800) {
+        t = time(nullptr);
+    }
+    struct tm* tm_info = gmtime(&t);
     if (tm_info) {
         strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", tm_info);
         return std::string(buf);
