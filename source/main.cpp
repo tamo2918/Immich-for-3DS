@@ -5,6 +5,9 @@
 #include <3ds.h>
 #include <malloc.h>
 
+// Increase main thread stack size to 256KB (libctru default is 32KB)
+extern "C" u32 __stacksize__ = 256 * 1024;
+
 #define SOC_ALIGN       0x1000
 #define SOC_BUFFERSIZE  0x100000 // 1MB buffer for sockets
 static u32* soc_buffer = nullptr;

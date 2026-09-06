@@ -28,7 +28,7 @@ bool UI::init() {
 
     m_topTarget = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     m_bottomTarget = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-    m_dynamicTextBuf = C2D_TextBufNew(4096);
+    m_dynamicTextBuf = C2D_TextBufNew(8192);
     return (m_topTarget && m_bottomTarget && m_dynamicTextBuf);
 #else
     return true;
@@ -64,17 +64,20 @@ void UI::endFrame() {
 
 void UI::drawText(float x, float y, float scale, u32 color, const char* format, ...) {
 #ifdef __3DS__
-    if (!m_dynamicTextBuf) return;
-    char buffer[256];
+    if (!m_dynamicTextBuf || !format) return;
+    char buffer[512];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
+    buffer[sizeof(buffer) - 1] = '\0';
 
     C2D_Text c2dText;
-    C2D_TextParse(&c2dText, m_dynamicTextBuf, buffer);
-    C2D_TextOptimize(&c2dText);
-    C2D_DrawText(&c2dText, C2D_WithColor, x, y, 0.5f, scale, scale, color);
+    const char* p = C2D_TextParse(&c2dText, m_dynamicTextBuf, buffer);
+    if (p) {
+        C2D_TextOptimize(&c2dText);
+        C2D_DrawText(&c2dText, C2D_WithColor, x, y, 0.5f, scale, scale, color);
+    }
 #endif
 }
 

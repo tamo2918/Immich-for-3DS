@@ -177,15 +177,15 @@ void App::handleInput() {
         }
 
         if (kDown & KEY_TOUCH) {
-            if (m_mainButtons[0].contains(touch.px, touch.py)) { // Sync Now
+            if (m_mainButtons.size() > 0 && m_mainButtons[0].contains(touch.px, touch.py)) { // Sync Now
                 runSync();
-            } else if (m_mainButtons[1].contains(touch.px, touch.py)) { // Photos
+            } else if (m_mainButtons.size() > 1 && m_mainButtons[1].contains(touch.px, touch.py)) { // Photos
                 m_currentView = UIView::PHOTOS;
-            } else if (m_mainButtons[2].contains(touch.px, touch.py)) { // Settings
+            } else if (m_mainButtons.size() > 2 && m_mainButtons[2].contains(touch.px, touch.py)) { // Settings
                 m_currentView = UIView::SETTINGS;
-            } else if (m_mainButtons[3].contains(touch.px, touch.py)) { // Gallery
+            } else if (m_mainButtons.size() > 3 && m_mainButtons[3].contains(touch.px, touch.py)) { // Gallery
                 m_currentView = UIView::GALLERY;
-            } else if (m_mainButtons[4].contains(touch.px, touch.py)) { // Exit
+            } else if (m_mainButtons.size() > 4 && m_mainButtons[4].contains(touch.px, touch.py)) { // Exit
                 m_running = false;
             }
         }
@@ -197,9 +197,9 @@ void App::handleInput() {
         }
 
         if (kDown & KEY_TOUCH) {
-            if (m_photoButtons[0].contains(touch.px, touch.py)) { // Sync All
+            if (m_photoButtons.size() > 0 && m_photoButtons[0].contains(touch.px, touch.py)) { // Sync All
                 runSync();
-            } else if (m_photoButtons[1].contains(touch.px, touch.py)) { // Back
+            } else if (m_photoButtons.size() > 1 && m_photoButtons[1].contains(touch.px, touch.py)) { // Back
                 m_currentView = UIView::MAIN;
             }
         }
@@ -211,15 +211,15 @@ void App::handleInput() {
         }
 
         if (kDown & KEY_TOUCH) {
-            if (m_settingsButtons[0].contains(touch.px, touch.py)) { // Test Connection
+            if (m_settingsButtons.size() > 0 && m_settingsButtons[0].contains(touch.px, touch.py)) { // Test Connection
                 testConnection();
-            } else if (m_settingsButtons[1].contains(touch.px, touch.py)) { // Toggle SSL
+            } else if (m_settingsButtons.size() > 1 && m_settingsButtons[1].contains(touch.px, touch.py)) { // Toggle SSL
                 m_config.sslVerify = !m_config.sslVerify;
                 m_client->updateConfig(m_config.serverUrl, m_config.apiKey, m_config.sslVerify, m_config.timeoutSec);
                 ConfigManager::save("sdmc:/3ds/Immich3DS/config.json", m_config);
                 m_settingsButtons[1].label = m_config.sslVerify ? "  SSL Verify: ON" : "  SSL Verify: OFF (Insecure)";
                 m_settingsStatus = m_config.sslVerify ? "SSL Verification enabled." : "SSL Verification disabled (allows self-signed).";
-            } else if (m_settingsButtons[2].contains(touch.px, touch.py)) { // Back
+            } else if (m_settingsButtons.size() > 2 && m_settingsButtons[2].contains(touch.px, touch.py)) { // Back
                 m_currentView = UIView::MAIN;
             }
         }
@@ -229,7 +229,7 @@ void App::handleInput() {
         }
 
         if (kDown & KEY_TOUCH) {
-            if (m_galleryButtons[2].contains(touch.px, touch.py)) { // Back
+            if (m_galleryButtons.size() > 2 && m_galleryButtons[2].contains(touch.px, touch.py)) { // Back
                 m_currentView = UIView::MAIN;
             }
         }

@@ -1,6 +1,7 @@
 #include "sha1.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define SHA1_ROL(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
@@ -131,18 +132,27 @@ void SHA1_ToBase64(const uint8_t digest[20], char base64_out[29]) {
 }
 
 int SHA1_FileHex(const char* filepath, char hex_out[41]) {
+    if (!filepath || !hex_out) return -1;
+
     FILE* f = fopen(filepath, "rb");
     if (!f) return -1;
+
+    // Allocate 16KB buffer on HEAP to prevent stack overflow on 3DS (default stack is only 32KB!)
+    const size_t buf_size = 16384;
+    uint8_t* buffer = (uint8_t*)malloc(buf_size);
+    if (!buffer) {
+        fclose(f);
+        return -1;
+    }
 
     SHA1_CTX ctx;
     SHA1_Init(&ctx);
 
-    // Use 32KB buffer for efficient SD card read
-    uint8_t buffer[32768];
     size_t bytes_read;
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+    while ((bytes_read = fread(buffer, 1, buf_size, f)) > 0) {
         SHA1_Update(&ctx, buffer, bytes_read);
     }
+    free(buffer);
     fclose(f);
 
     uint8_t digest[20];
