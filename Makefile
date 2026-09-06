@@ -81,7 +81,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
 $(TARGET).elf: $(OBJS)
 	@echo "  LD    $@"
 	@$(LD) $(ARCH) -Wl,-Map,$(BUILD_DIR)/$(TARGET).map -Wl,--gc-sections \
-		-T$(LIBCTRU)/3ds.ld $(LIBDIRS) $(OBJS) $(LIBS) -o $@
+		-specs=3dsx.specs $(LIBDIRS) $(OBJS) $(LIBS) -o $@
 
 $(TARGET).smdh: $(ICON)
 	@echo "  SMDH  $@"
@@ -125,7 +125,7 @@ send: $(TARGET).3dsx
 ifeq ($(strip $(IP)),)
 	@echo "Error: Specify 3DS IP address: make send IP=192.168.x.x"
 else
-	$(3DSLINK) -a $(IP) $(TARGET).3dsx
+	@if command -v 3dslink >/dev/null 2>&1; then 		3dslink -a $(IP) $(TARGET).3dsx; 	else 		docker run --rm --net=host -v "$$(pwd)":/workspace -w /workspace devkitpro/devkitarm:latest 			bash -c "source /opt/devkitpro/3dsvars.sh && 3dslink -a $(IP) $(TARGET).3dsx"; 	fi
 endif
 
 #---------------------------------------------------------------------------------
