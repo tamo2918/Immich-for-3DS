@@ -118,10 +118,15 @@ Immich 3DS では、セキュリティの観点から管理者フルアクセス
 ### 方式 1: FBI QR コードインストール (最も手軽・推奨)
 CIA リリースファイルを 3DS のカメラで QR コードをスキャンして直接インストールします。
 
+<p align="center">
+  <img src="https://github.com/tamo2918/Immich-for-3DS/releases/download/v1.0.0/qr.png" width="200" alt="FBI QR Code">
+</p>
+
 1. 3DS で **FBI** を起動します。
 2. **「Remote Install」** → **「Scan QR Code」** を選択します。
-3. GitHub Releases に掲載されている `Immich3DS.cia` の QR コードを 3DS のカメラで読み取ります。
-4. インストール完了後、HOME メニューに「Immich 3DS」のアイコンが追加されます。
+3. 上記の QR コードを 3DS のカメラで読み取ります。
+4. `Install and delete CIA`（または `Install CIA`）を選択してインストールします。
+5. インストール完了後、HOME メニューに戻るとプレゼントボックス（アイコン）が届いています。
 
 ### 方式 2: 3dslink による無線転送 (開発・デバッグ用)
 PC と 3DS が同一 Wi-Fi に接続されている場合、SD カードを抜かずに即座にテスト起動できます。
@@ -349,10 +354,16 @@ Unlike a web app running in a browser, Immich 3DS is built natively to take full
 
 ### Method 1: FBI QR Code Install (Recommended)
 Install the standalone CIA package directly onto your 3DS HOME Menu using FBI:
+
+<p align="center">
+  <img src="https://github.com/tamo2918/Immich-for-3DS/releases/download/v1.0.0/qr.png" width="200" alt="FBI QR Code">
+</p>
+
 1. Launch **FBI** on your Nintendo 3DS.
 2. Select **Remote Install** → **Scan QR Code**.
-3. Scan the QR code from the latest release in [GitHub Releases](https://github.com/tamo2918/Immich-for-3DS/releases).
-4. Launch "Immich 3DS" directly from your 3DS HOME Menu.
+3. Scan the QR code above.
+4. Select `Install and delete CIA` (or `Install CIA`).
+5. Return to the 3DS HOME Menu to unwrap your new application!
 
 ### Method 2: Wireless Transfer via 3dslink (Development / Testing)
 1. Open the **Homebrew Launcher** on your 3DS and press **Y** to activate NetLoader.
