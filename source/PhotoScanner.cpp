@@ -16,20 +16,19 @@ std::string PhotoInfo::getIsoTime() const {
     return "2026-01-01T00:00:00Z";
 }
 
-bool PhotoScanner::isSupportedExtension(const std::string& filename, bool includeMpo) {
-    size_t dot = filename.find_last_of('.');
+bool PhotoScanner::isSupportedPhoto(const std::string& path) {
+    size_t dot = path.find_last_of('.');
     if (dot == std::string::npos) return false;
 
-    std::string ext = filename.substr(dot);
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    std::string ext = path.substr(dot);
+    for (char& c : ext) {
+        c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+    }
 
-    if (ext == ".jpg" || ext == ".jpeg") return true;
-    if (includeMpo && ext == ".mpo") return true;
-
-    return false;
+    return (ext == ".jpg" || ext == ".jpeg");
 }
 
-void PhotoScanner::scanDirectory(const std::string& dirPath, std::vector<PhotoInfo>& results, bool includeMpo) {
+void PhotoScanner::scanDirectory(const std::string& dirPath, std::vector<PhotoInfo>& results) {
     DIR* dir = opendir(dirPath.c_str());
     if (!dir) {
         Logger::debug("Could not open directory: %s", dirPath.c_str());
@@ -56,23 +55,15 @@ void PhotoScanner::scanDirectory(const std::string& dirPath, std::vector<PhotoIn
 
         if (S_ISDIR(st.st_mode)) {
             // Recurse into subdirectories (e.g. 100NIN03)
-            scanDirectory(fullPath, results, includeMpo);
+            scanDirectory(fullPath, results);
         } else if (S_ISREG(st.st_mode)) {
             std::string fname = entry->d_name;
-            if (isSupportedExtension(fname, includeMpo)) {
+            if (isSupportedPhoto(fname)) {
                 PhotoInfo info;
                 info.path = fullPath;
                 info.filename = fname;
                 info.fileSize = (size_t)st.st_size;
                 info.modTime = st.st_mtime;
-
-                size_t dot = fname.find_last_of('.');
-                if (dot != std::string::npos) {
-                    std::string ext = fname.substr(dot);
-                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                    info.isMpo = (ext == ".mpo");
-                }
-
                 results.push_back(info);
             }
         }
@@ -80,10 +71,10 @@ void PhotoScanner::scanDirectory(const std::string& dirPath, std::vector<PhotoIn
     closedir(dir);
 }
 
-std::vector<PhotoInfo> PhotoScanner::scanDcim(const std::string& dcimRoot, bool includeMpo) {
+std::vector<PhotoInfo> PhotoScanner::scanDcim(const std::string& dcimRoot) {
     std::vector<PhotoInfo> photos;
-    Logger::info("Scanning for photos in %s (includeMPO=%s)...", dcimRoot.c_str(), includeMpo ? "yes" : "no");
-    scanDirectory(dcimRoot, photos, includeMpo);
+    Logger::info("Scanning for photos in %s (JPEG only)...", dcimRoot.c_str());
+    scanDirectory(dcimRoot, photos);
 
     // Sort by modification time ascending (chronological order)
     std::sort(photos.begin(), photos.end(), [](const PhotoInfo& a, const PhotoInfo& b) {

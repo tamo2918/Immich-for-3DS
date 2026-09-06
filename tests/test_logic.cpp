@@ -35,7 +35,6 @@ void testConfig() {
     cfg.apiKey = "abcdef1234567890abcdef1234567890";
     cfg.sslVerify = false;
     cfg.autoSync = true;
-    cfg.syncMpo = true;
     cfg.timeoutSec = 20;
     cfg.lastSyncTime = "2026/09/06 21:00";
 
@@ -62,6 +61,17 @@ void testConfig() {
 
 void testPhotoScanner() {
     std::cout << "[TEST] Running PhotoScanner tests..." << std::endl;
+
+    // Unit test isSupportedPhoto
+    assert(PhotoScanner::isSupportedPhoto("HNI_0001.JPG") == true);
+    assert(PhotoScanner::isSupportedPhoto("HNI_0001.jpg") == true);
+    assert(PhotoScanner::isSupportedPhoto("photo.jpeg") == true);
+    assert(PhotoScanner::isSupportedPhoto("photo.JPEG") == true);
+    assert(PhotoScanner::isSupportedPhoto("HNI_0001.MPO") == false);
+    assert(PhotoScanner::isSupportedPhoto("HNI_0001.mpo") == false);
+    assert(PhotoScanner::isSupportedPhoto("video.mp4") == false);
+    assert(PhotoScanner::isSupportedPhoto("no_ext") == false);
+
     system("mkdir -p tests/mock_dcim/100NIN03");
     FILE* f1 = fopen("tests/mock_dcim/100NIN03/HNI_0001.JPG", "wb");
     assert(f1);
@@ -78,24 +88,16 @@ void testPhotoScanner() {
     fputs("mock jpg 2", f3);
     fclose(f3);
 
-    auto photos = PhotoScanner::scanDcim("tests/mock_dcim", true);
-    assert(photos.size() == 3);
+    // Only JPEG photos should be found; MPO must be ignored
+    auto photos = PhotoScanner::scanDcim("tests/mock_dcim");
+    assert(photos.size() == 2);
 
-    bool foundJpg = false, foundMpo = false;
     for (auto& p : photos) {
         bool ok = PhotoScanner::calculateSha1(p);
         assert(ok);
         assert(!p.sha1.empty());
-        if (p.filename == "HNI_0001.JPG") foundJpg = true;
-        if (p.filename == "HNI_0001.MPO") {
-            foundMpo = true;
-            assert(p.isMpo == true);
-        }
+        assert(p.filename == "HNI_0001.JPG" || p.filename == "HNI_0002.jpg");
     }
-    assert(foundJpg && foundMpo);
-
-    auto photosNoMpo = PhotoScanner::scanDcim("tests/mock_dcim", false);
-    assert(photosNoMpo.size() == 2);
 
     system("rm -rf tests/mock_dcim");
     std::cout << "  PhotoScanner test passed!" << std::endl;

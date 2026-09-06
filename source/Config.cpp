@@ -96,11 +96,6 @@ bool ConfigManager::load(const std::string& path, AppConfig& config) {
         config.autoSync = cJSON_IsTrue(item);
     }
 
-    item = cJSON_GetObjectItem(root, "sync_mpo");
-    if (item && cJSON_IsBool(item)) {
-        config.syncMpo = cJSON_IsTrue(item);
-    }
-
     item = cJSON_GetObjectItem(root, "timeout_sec");
     if (item && cJSON_IsNumber(item)) {
         config.timeoutSec = item->valueint;
@@ -129,7 +124,6 @@ bool ConfigManager::save(const std::string& path, const AppConfig& config) {
     cJSON_AddStringToObject(root, "api_key", config.apiKey.c_str());
     cJSON_AddBoolToObject(root, "ssl_verify", config.sslVerify);
     cJSON_AddBoolToObject(root, "auto_sync", config.autoSync);
-    cJSON_AddBoolToObject(root, "sync_mpo", config.syncMpo);
     cJSON_AddNumberToObject(root, "timeout_sec", config.timeoutSec);
     cJSON_AddStringToObject(root, "last_sync_time", config.lastSyncTime.c_str());
 

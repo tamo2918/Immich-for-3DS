@@ -8,7 +8,6 @@ struct AppConfig {
     std::string apiKey = "";
     bool sslVerify = true;
     bool autoSync = false;
-    bool syncMpo = true;
     int timeoutSec = 15;
     std::string lastSyncTime = "Never";
 };

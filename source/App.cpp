@@ -353,7 +353,7 @@ void App::run() {
 
             std::vector<std::string> photoNames;
             for (const auto& p : m_syncMgr->getUnsyncedPhotos()) {
-                photoNames.push_back(p.filename + (p.isMpo ? " [3D MPO]" : " [2D JPG]"));
+                photoNames.push_back(p.filename);
             }
             m_ui.renderBottomPhotos(photoNames, m_photoScrollOffset, m_photoButtons);
         } else if (m_currentView == UIView::SETTINGS) {

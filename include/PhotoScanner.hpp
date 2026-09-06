@@ -10,7 +10,6 @@ struct PhotoInfo {
     std::string filename;
     size_t fileSize = 0;
     time_t modTime = 0;
-    bool isMpo = false;
     std::string sha1; // Calculated when needed
 
     std::string getIsoTime() const;
@@ -18,12 +17,12 @@ struct PhotoInfo {
 
 class PhotoScanner {
 public:
-    static std::vector<PhotoInfo> scanDcim(const std::string& dcimRoot = "sdmc:/DCIM", bool includeMpo = true);
+    static bool isSupportedPhoto(const std::string& path);
+    static std::vector<PhotoInfo> scanDcim(const std::string& dcimRoot = "sdmc:/DCIM");
     static bool calculateSha1(PhotoInfo& photo);
 
 private:
-    static bool isSupportedExtension(const std::string& filename, bool includeMpo);
-    static void scanDirectory(const std::string& dirPath, std::vector<PhotoInfo>& results, bool includeMpo);
+    static void scanDirectory(const std::string& dirPath, std::vector<PhotoInfo>& results);
 };
 
 #endif // PHOTO_SCANNER_HPP

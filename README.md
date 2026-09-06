@@ -12,7 +12,7 @@ Web アプリケーションではなく、3DS のハードウェア（ARM11 MPC
 
 * **Nintendo 3DS カメラ完全対応**:
   * `sdmc:/DCIM/` 内の撮影済み写真を自動検出（`100NIN03` 等のサブフォルダを再帰走査）。
-  * 通常の **2D 写真 (`.JPG`)** に加え、3DS 特有の **3D 立体写真 (`.MPO`)** のバックアップにも公式対応。
+  * 標準 **JPEG 写真 (`.JPG` / `.JPEG`)** のみを確実にバックアップ（MPO等の非JPEGファイルは安全にスキップ）。
 * **二重の重複防止システム (Smart Deduplication)**:
   * ローカルの同期データベース (`sync.json`) による高速判定。
   * Immich の `POST /api/assets/bulk-upload-check` API と SHA-1 ハッシュによるサーバー側二重チェック。
@@ -147,7 +147,6 @@ PC と 3DS が同一 Wi-Fi に接続されている場合、SD カードを抜�
   "api_key": "your_immich_api_key_here",
   "ssl_verify": true,
   "auto_sync": false,
-  "sync_mpo": true,
   "timeout_sec": 15
 }
 ```
@@ -158,7 +157,6 @@ PC と 3DS が同一 Wi-Fi に接続されている場合、SD カードを抜�
 * `api_key`: Immich で発行した API キー
 * `ssl_verify`: HTTPS 接続時の証明書検証（自己署名証明書をお使いの場合は `false` に設定）
 * `auto_sync`: アプリ起動時に未同期写真を自動でバックアップするかどうか
-* `sync_mpo`: 3D 立体写真 (`.MPO`) も同期するかどうか (`true`/`false`)
 * `timeout_sec`: 通信タイムアウト秒数（標準: 15）
 
 ---

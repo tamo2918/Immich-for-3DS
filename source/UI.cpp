@@ -244,10 +244,10 @@ void UI::renderTopPhotos(size_t total, size_t unsynced, const std::string& lastE
     drawText(26, 64, 0.48f, (unsynced > 0) ? COLOR_ORANGE : COLOR_GREEN, "Pending Upload: %zu photos", unsynced);
 
     drawRect(15, 96, 370, 130, COLOR_CARD);
-    drawText(26, 106, 0.45f, COLOR_TEXT_MUTED, "Supported formats:");
-    drawText(26, 126, 0.45f, COLOR_TEXT, "- .JPG (Standard 2D Camera Photos)");
-    drawText(26, 146, 0.45f, COLOR_TEXT, "- .MPO (Nintendo 3DS 3D Photos)");
-    drawText(26, 176, 0.42f, COLOR_TEXT_MUTED, "Immich stores and preserves both formats natively.");
+    drawText(26, 106, 0.45f, COLOR_TEXT_MUTED, "Supported format:");
+    drawText(26, 126, 0.45f, COLOR_TEXT, "- JPEG (.JPG / .JPEG)");
+    drawText(26, 154, 0.42f, COLOR_TEXT_MUTED, "MPO 3D photos are safely ignored.");
+    drawText(26, 174, 0.42f, COLOR_TEXT_MUTED, "Only JPEG camera photos are backed up to Immich.");
 #endif
 }
 

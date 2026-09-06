@@ -134,7 +134,7 @@ bool SyncManager::saveSyncDb() {
 
 void SyncManager::scanLocalPhotos() {
     m_state = SyncState::SCANNING;
-    m_allPhotos = PhotoScanner::scanDcim("sdmc:/DCIM", m_config.syncMpo);
+    m_allPhotos = PhotoScanner::scanDcim("sdmc:/DCIM");
     m_unsyncedPhotos.clear();
 
     for (const auto& photo : m_allPhotos) {
