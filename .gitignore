@@ -1,0 +1,24 @@
+# Build output
+build/
+*.elf
+*.3dsx
+*.smdh
+*.cia
+*.o
+*.map
+
+# Test binaries and temp files
+run_tests
+run_all_tests
+test_core
+*.tmp
+*.log
+tests/mock_dcim/
+tests/test_file.bin
+tests/test_config.json
+tests/test_sync.json
+
+# OS and Editor files
+.DS_Store
+.vscode/
+.idea/

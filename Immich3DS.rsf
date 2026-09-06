@@ -1,0 +1,53 @@
+BasicInfo:
+  Title                   : "Immich 3DS"
+  CompanyCode             : "00"
+  ProductCode             : "CTR-P-IM3D"
+  ContentType             : Application
+  Logo                    : None
+
+TitleInfo:
+  Category                : Application
+  UniqueId                : 0x0EC3D
+
+CardInfo:
+  MediaSize               : 128MB
+  MediaType               : Card1
+
+Option:
+  UseOnSD                 : true
+  EnableCompress          : true
+  FreeProductCode         : true
+  EnableSaveData          : true
+
+AccessControlInfo:
+  CoreVersion                   : 2
+  DescVersion                   : 2
+  ReleaseKernelMajor            : "02"
+  ReleaseKernelMinor            : "33"
+  IdealProcessor                : 0
+  AffinityMask                  : 1
+  Priority                      : 16
+  MaxCpu                        : 0x84
+
+  FileSystemAccess:
+    - DirectSdmc
+    - DirectSdmcWrite
+
+  ServiceAccessControl:
+    - apt:u
+    - cfg:u
+    - cfgu:u
+    - fs:USER
+    - gsp::Gpu
+    - hid:USER
+    - ndm:u
+    - ps:ps
+    - ptm:u
+    - soc:U
+    - ac:u
+    - ssl:C
+
+SystemControlInfo:
+  SaveDataSize: 0KB
+  RemasterVersion: 0
+  StackSize: 0x00040000
