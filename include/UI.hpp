@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "PhotoScanner.hpp"
+
 enum class UIView {
     MAIN,
     PHOTOS,
@@ -37,13 +39,18 @@ public:
 
     // Top Screen Rendering
     void renderTopMain(const std::string& serverStatus, bool connected,
-                       u8 wifiStrength, size_t totalPhotos, size_t unsyncedPhotos,
+                       u8 wifiStrength,
+                       size_t totalPhotos, size_t totalVideos,
+                       size_t unsyncedPhotos, size_t unsyncedVideos,
                        const std::string& lastSyncTime, const std::string& stateText,
                        float overallProgress, float fileProgress,
                        const std::string& currentFilename, const std::string& lastError,
-                       u32 animFrame = 0, bool isSyncing = false, size_t fileNow = 0, size_t fileTotal = 0);
+                       u32 animFrame = 0, bool isSyncing = false, size_t fileNow = 0, size_t fileTotal = 0,
+                       MediaType currentMediaType = MediaType::PHOTO);
 
-    void renderTopPhotos(size_t total, size_t unsynced, const std::string& lastError);
+    void renderTopPhotos(size_t totalPhotos, size_t totalVideos,
+                         size_t unsyncedPhotos, size_t unsyncedVideos,
+                         const std::string& lastError);
     void renderTopSettings(const std::string& serverUrl, const std::string& maskedKey,
                            bool sslVerify, const std::string& testResult, bool testSuccess);
     void renderTopGallery(int page, int totalPages, int totalAssets);

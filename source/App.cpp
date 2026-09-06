@@ -17,8 +17,8 @@ void App::setupButtons() {
     m_mainButtons.clear();
     // 1. Sync Now (Primary)
     m_mainButtons.push_back({ 20, 15, 280, 44, "  Sync Now", C2D_Color32(38, 86, 214, 255), C2D_Color32(255, 255, 255, 255) });
-    // 2. Photos List
-    m_mainButtons.push_back({ 20, 68, 280, 38, "  Photos on SD Card", C2D_Color32(40, 48, 64, 255), C2D_Color32(240, 240, 240, 255) });
+    // 2. Photos/Videos List
+    m_mainButtons.push_back({ 20, 68, 280, 38, "  Media on SD Card", C2D_Color32(40, 48, 64, 255), C2D_Color32(240, 240, 240, 255) });
     // 3. Settings
     m_mainButtons.push_back({ 20, 114, 135, 38, "  Settings", C2D_Color32(40, 48, 64, 255), C2D_Color32(240, 240, 240, 255) });
     // 4. Gallery
@@ -322,15 +322,17 @@ void App::run() {
 
         std::string stateText;
         SyncState st = m_syncMgr->getState();
-        if (st == SyncState::SCANNING) stateText = "Scanning SD Card for DCIM photos...";
-        else if (st == SyncState::CALCULATING_HASH) stateText = "Computing SHA-1 photo hashes...";
+        if (st == SyncState::SCANNING) stateText = "Scanning SD Card for DCIM media...";
+        else if (st == SyncState::CALCULATING_HASH) stateText = "Computing SHA-1 media hashes...";
         else if (st == SyncState::CHECKING_SERVER) stateText = "Checking duplicates with Immich...";
         else if (st == SyncState::UPLOADING) {
             char buf[64];
-            snprintf(buf, sizeof(buf), "Uploading %zu / %zu",
+            const char* typeStr = (m_syncMgr->getCurrentMediaType() == MediaType::VIDEO) ? "Video" : "Photo";
+            snprintf(buf, sizeof(buf), "Uploading %s %zu / %zu",
+                     typeStr,
                      m_syncMgr->getCurrentSyncIndex(), m_syncMgr->getTotalSyncCount());
             stateText = buf;
-        } else if (st == SyncState::COMPLETED) stateText = "All photos synchronized!";
+        } else if (st == SyncState::COMPLETED) stateText = "All media synchronized!";
 
         if (m_currentView == UIView::MAIN) {
             float overallProg = (m_syncMgr->getTotalSyncCount() > 0) ?
@@ -338,22 +340,28 @@ void App::run() {
 
             m_ui.renderTopMain(m_serverStatus, m_connected, m_wifiStrength,
                                m_syncMgr->getTotalPhotosCount(),
+                               m_syncMgr->getTotalVideosCount(),
                                m_syncMgr->getUnsyncedPhotosCount(),
+                               m_syncMgr->getUnsyncedVideosCount(),
                                m_config.lastSyncTime, stateText,
                                overallProg, m_syncMgr->getCurrentFileProgress(),
                                m_syncMgr->getCurrentFilename(), m_syncMgr->getLastError(),
                                frameCount, m_syncInProgress,
-                               m_syncMgr->getCurrentFileNow(), m_syncMgr->getCurrentFileTotal());
+                               m_syncMgr->getCurrentFileNow(), m_syncMgr->getCurrentFileTotal(),
+                               m_syncMgr->getCurrentMediaType());
 
             m_ui.renderBottomMain(m_mainButtons);
         } else if (m_currentView == UIView::PHOTOS) {
             m_ui.renderTopPhotos(m_syncMgr->getTotalPhotosCount(),
+                                 m_syncMgr->getTotalVideosCount(),
                                  m_syncMgr->getUnsyncedPhotosCount(),
+                                 m_syncMgr->getUnsyncedVideosCount(),
                                  m_syncMgr->getLastError());
 
             std::vector<std::string> photoNames;
             for (const auto& p : m_syncMgr->getUnsyncedPhotos()) {
-                photoNames.push_back(p.filename);
+                std::string tag = (p.mediaType == MediaType::VIDEO) ? "[AVI] " : "[JPG] ";
+                photoNames.push_back(tag + p.filename);
             }
             m_ui.renderBottomPhotos(photoNames, m_photoScrollOffset, m_photoButtons);
         } else if (m_currentView == UIView::SETTINGS) {

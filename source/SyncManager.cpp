@@ -75,6 +75,19 @@ bool SyncManager::loadSyncDb() {
             val = cJSON_GetObjectItem(item, "syncedAt");
             if (val && cJSON_IsString(val) && val->valuestring) rec.syncedAt = val->valuestring;
 
+            val = cJSON_GetObjectItem(item, "media_type");
+            if (val && cJSON_IsString(val) && val->valuestring) {
+                std::string mt = val->valuestring;
+                rec.mediaType = (mt == "video") ? MediaType::VIDEO : MediaType::PHOTO;
+            } else {
+                MediaType deduced;
+                if (PhotoScanner::isSupportedMedia(rec.filename, deduced)) {
+                    rec.mediaType = deduced;
+                } else {
+                    rec.mediaType = MediaType::PHOTO;
+                }
+            }
+
             if (!rec.filename.empty()) {
                 m_syncRecords[rec.filename] = rec;
             }
@@ -103,6 +116,7 @@ bool SyncManager::saveSyncDb() {
         cJSON_AddStringToObject(item, "sha1", rec.sha1.c_str());
         cJSON_AddStringToObject(item, "assetId", rec.assetId.c_str());
         cJSON_AddStringToObject(item, "syncedAt", rec.syncedAt.c_str());
+        cJSON_AddStringToObject(item, "media_type", (rec.mediaType == MediaType::VIDEO) ? "video" : "photo");
         cJSON_AddItemToArray(arr, item);
     }
 
@@ -151,7 +165,41 @@ void SyncManager::scanLocalPhotos() {
     }
 
     m_state = SyncState::IDLE;
-    Logger::info("Scan complete. Total: %zu, Unsynced: %zu", m_allPhotos.size(), m_unsyncedPhotos.size());
+    Logger::info("Scan complete. Total: %zu (Photos: %zu, Videos: %zu), Unsynced: %zu (Photos: %zu, Videos: %zu)",
+                 m_allPhotos.size(), getTotalPhotosCount(), getTotalVideosCount(),
+                 m_unsyncedPhotos.size(), getUnsyncedPhotosCount(), getUnsyncedVideosCount());
+}
+
+size_t SyncManager::getTotalPhotosCount() const {
+    size_t count = 0;
+    for (const auto& m : m_allPhotos) {
+        if (m.mediaType == MediaType::PHOTO) count++;
+    }
+    return count;
+}
+
+size_t SyncManager::getTotalVideosCount() const {
+    size_t count = 0;
+    for (const auto& m : m_allPhotos) {
+        if (m.mediaType == MediaType::VIDEO) count++;
+    }
+    return count;
+}
+
+size_t SyncManager::getUnsyncedPhotosCount() const {
+    size_t count = 0;
+    for (const auto& m : m_unsyncedPhotos) {
+        if (m.mediaType == MediaType::PHOTO) count++;
+    }
+    return count;
+}
+
+size_t SyncManager::getUnsyncedVideosCount() const {
+    size_t count = 0;
+    for (const auto& m : m_unsyncedPhotos) {
+        if (m.mediaType == MediaType::VIDEO) count++;
+    }
+    return count;
 }
 
 void SyncManager::uploadProgressCallback(size_t now, size_t total, void* user) {
@@ -219,6 +267,7 @@ bool SyncManager::performSync() {
             rec.modTime = photo.modTime;
             rec.sha1 = photo.sha1;
             rec.assetId = it->second.assetId;
+            rec.mediaType = photo.mediaType;
 
             time_t now = time(nullptr);
             char tbuf[32];
@@ -260,6 +309,7 @@ bool SyncManager::performSync() {
         const PhotoInfo& photo = actuallyNeedUpload[i];
         m_currentSyncIndex = i + 1;
         m_currentFilename = photo.filename;
+        m_currentMediaType = photo.mediaType;
         m_currentFileProgress = 0.0f;
         m_currentFileNow = 0;
         m_currentFileTotal = photo.fileSize;
@@ -284,6 +334,7 @@ bool SyncManager::performSync() {
         rec.modTime = photo.modTime;
         rec.sha1 = photo.sha1;
         rec.assetId = assetId;
+        rec.mediaType = photo.mediaType;
 
         time_t now = time(nullptr);
         char tbuf[32];
@@ -302,11 +353,12 @@ bool SyncManager::performSync() {
     ConfigManager::save("sdmc:/3ds/Immich3DS/config.json", m_config);
 
     m_currentFilename.clear();
+    m_currentMediaType = MediaType::PHOTO;
     m_currentFileProgress = 0.0f;
     m_currentFileNow = 0;
     m_currentFileTotal = 0;
     m_state = SyncState::COMPLETED;
-    Logger::info("Sync completed successfully! %zu photos uploaded.", actuallyNeedUpload.size());
+    Logger::info("Sync completed successfully! %zu item(s) uploaded.", actuallyNeedUpload.size());
     scanLocalPhotos();
     return true;
 }

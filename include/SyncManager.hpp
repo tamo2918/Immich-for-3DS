@@ -26,6 +26,7 @@ struct SyncRecord {
     std::string sha1;
     std::string assetId;
     std::string syncedAt;
+    MediaType mediaType = MediaType::PHOTO;
 };
 
 class SyncManager {
@@ -41,14 +42,19 @@ public:
 
     // State & Statistics
     SyncState getState() const { return m_state; }
-    size_t getTotalPhotosCount() const { return m_allPhotos.size(); }
-    size_t getUnsyncedPhotosCount() const { return m_unsyncedPhotos.size(); }
+    size_t getTotalMediaCount() const { return m_allPhotos.size(); }
+    size_t getTotalPhotosCount() const;
+    size_t getTotalVideosCount() const;
+    size_t getUnsyncedMediaCount() const { return m_unsyncedPhotos.size(); }
+    size_t getUnsyncedPhotosCount() const;
+    size_t getUnsyncedVideosCount() const;
     size_t getCurrentSyncIndex() const { return m_currentSyncIndex; }
     size_t getTotalSyncCount() const { return m_totalToSync; }
     float getCurrentFileProgress() const { return m_currentFileProgress; }
     size_t getCurrentFileNow() const { return m_currentFileNow; }
     size_t getCurrentFileTotal() const { return m_currentFileTotal; }
     std::string getCurrentFilename() const { return m_currentFilename; }
+    MediaType getCurrentMediaType() const { return m_currentMediaType; }
     std::string getLastError() const { return m_lastError; }
     const std::vector<PhotoInfo>& getUnsyncedPhotos() const { return m_unsyncedPhotos; }
 
@@ -70,6 +76,7 @@ private:
     size_t m_currentFileNow = 0;
     size_t m_currentFileTotal = 0;
     std::string m_currentFilename;
+    MediaType m_currentMediaType = MediaType::PHOTO;
     std::string m_lastError;
     bool m_cancelRequested = false;
 

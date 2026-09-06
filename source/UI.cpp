@@ -158,11 +158,14 @@ void UI::drawButton(const TouchButton& btn) {
 }
 
 void UI::renderTopMain(const std::string& serverStatus, bool connected,
-                       u8 wifiStrength, size_t totalPhotos, size_t unsyncedPhotos,
+                       u8 wifiStrength,
+                       size_t totalPhotos, size_t totalVideos,
+                       size_t unsyncedPhotos, size_t unsyncedVideos,
                        const std::string& lastSyncTime, const std::string& stateText,
                        float overallProgress, float fileProgress,
                        const std::string& currentFilename, const std::string& lastError,
-                       u32 animFrame, bool isSyncing, size_t fileNow, size_t fileTotal) {
+                       u32 animFrame, bool isSyncing, size_t fileNow, size_t fileTotal,
+                       MediaType currentMediaType) {
 #ifdef __3DS__
     C2D_TargetClear(m_topTarget, COLOR_BG);
     C2D_SceneBegin(m_topTarget);
@@ -184,15 +187,21 @@ void UI::renderTopMain(const std::string& serverStatus, bool connected,
 
     // Stats card
     drawRect(15, 84, 370, 78, COLOR_CARD);
-    drawText(26, 92, 0.48f, COLOR_TEXT_MUTED, "Photos on 3DS:");
-    drawText(160, 92, 0.50f, COLOR_TEXT, "%zu", totalPhotos);
+    size_t totalMedia = totalPhotos + totalVideos;
+    drawText(26, 92, 0.46f, COLOR_TEXT_MUTED, "Media on 3DS:");
+    drawText(145, 92, 0.48f, COLOR_TEXT, "%zu (%zu Photo%s, %zu Video%s)",
+             totalMedia,
+             totalPhotos, (totalPhotos == 1 ? "" : "s"),
+             totalVideos, (totalVideos == 1 ? "" : "s"));
 
-    drawText(26, 114, 0.48f, COLOR_TEXT_MUTED, "Not Synced:");
-    u32 unsyncedCol = (unsyncedPhotos > 0) ? COLOR_ORANGE : COLOR_GREEN;
-    drawText(160, 114, 0.50f, unsyncedCol, "%zu", unsyncedPhotos);
+    size_t unsyncedMedia = unsyncedPhotos + unsyncedVideos;
+    drawText(26, 114, 0.46f, COLOR_TEXT_MUTED, "Not Synced:");
+    u32 unsyncedCol = (unsyncedMedia > 0) ? COLOR_ORANGE : COLOR_GREEN;
+    drawText(145, 114, 0.48f, unsyncedCol, "%zu (P: %zu, V: %zu)",
+             unsyncedMedia, unsyncedPhotos, unsyncedVideos);
 
-    drawText(26, 136, 0.48f, COLOR_TEXT_MUTED, "Last Sync:");
-    drawText(160, 136, 0.48f, COLOR_TEXT, "%s", lastSyncTime.c_str());
+    drawText(26, 136, 0.46f, COLOR_TEXT_MUTED, "Last Sync:");
+    drawText(145, 136, 0.48f, COLOR_TEXT, "%s", lastSyncTime.c_str());
 
     // Sync progress / status area (height 68)
     drawRect(15, 168, 370, 66, COLOR_CARD);
@@ -211,13 +220,14 @@ void UI::renderTopMain(const std::string& serverStatus, bool connected,
         drawText(26, 174, 0.46f, COLOR_GREEN, "%s%s", stateText.c_str(), dotSuffix);
 
         if (!currentFilename.empty()) {
+            const char* typeTag = (currentMediaType == MediaType::VIDEO) ? "[AVI]" : "[JPG]";
             if (fileTotal > 0) {
                 int pct = (int)((fileNow * 100) / fileTotal);
                 if (pct > 100) pct = 100;
-                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "%s (%zu / %zu KB, %d%%)",
-                         currentFilename.c_str(), fileNow / 1024, fileTotal / 1024, pct);
+                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "%s %s (%zu / %zu KB, %d%%)",
+                         typeTag, currentFilename.c_str(), fileNow / 1024, fileTotal / 1024, pct);
             } else {
-                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "File: %s", currentFilename.c_str());
+                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "%s %s", typeTag, currentFilename.c_str());
             }
             drawAnimatedProgressBar(26, 212, 348, 8, fileProgress, animFrame, COLOR_HEADER, COLOR_BG);
         } else {
@@ -231,23 +241,31 @@ void UI::renderTopMain(const std::string& serverStatus, bool connected,
 #endif
 }
 
-void UI::renderTopPhotos(size_t total, size_t unsynced, const std::string& lastError) {
+void UI::renderTopPhotos(size_t totalPhotos, size_t totalVideos,
+                         size_t unsyncedPhotos, size_t unsyncedVideos,
+                         const std::string& lastError) {
 #ifdef __3DS__
     C2D_TargetClear(m_topTarget, COLOR_BG);
     C2D_SceneBegin(m_topTarget);
 
     drawRect(0, 0, 400, 26, COLOR_HEADER);
-    drawText(10, 4, 0.55f, COLOR_TEXT, "Photo Manager (DCIM)");
+    drawText(10, 4, 0.55f, COLOR_TEXT, "Media Manager (DCIM)");
 
-    drawRect(15, 36, 370, 50, COLOR_CARD);
-    drawText(26, 44, 0.48f, COLOR_TEXT, "Detected on SD Card: %zu photos", total);
-    drawText(26, 64, 0.48f, (unsynced > 0) ? COLOR_ORANGE : COLOR_GREEN, "Pending Upload: %zu photos", unsynced);
+    drawRect(15, 36, 370, 52, COLOR_CARD);
+    size_t totalMedia = totalPhotos + totalVideos;
+    size_t unsyncedMedia = unsyncedPhotos + unsyncedVideos;
+    drawText(26, 44, 0.46f, COLOR_TEXT, "SD Card: %zu items (%zu Photos, %zu Videos)",
+             totalMedia, totalPhotos, totalVideos);
+    drawText(26, 64, 0.46f, (unsyncedMedia > 0) ? COLOR_ORANGE : COLOR_GREEN,
+             "Pending Upload: %zu items (P: %zu, V: %zu)",
+             unsyncedMedia, unsyncedPhotos, unsyncedVideos);
 
     drawRect(15, 96, 370, 130, COLOR_CARD);
-    drawText(26, 106, 0.45f, COLOR_TEXT_MUTED, "Supported format:");
-    drawText(26, 126, 0.45f, COLOR_TEXT, "- JPEG (.JPG / .JPEG)");
-    drawText(26, 154, 0.42f, COLOR_TEXT_MUTED, "MPO 3D photos are safely ignored.");
-    drawText(26, 174, 0.42f, COLOR_TEXT_MUTED, "Only JPEG camera photos are backed up to Immich.");
+    drawText(26, 104, 0.45f, COLOR_TEXT_MUTED, "Supported formats:");
+    drawText(26, 122, 0.45f, COLOR_TEXT, "- JPEG (.JPG / .JPEG)");
+    drawText(26, 140, 0.45f, COLOR_TEXT, "- Video (.AVI - Motion JPEG)");
+    drawText(26, 166, 0.42f, COLOR_TEXT_MUTED, "MPO 3D photos are strictly ignored.");
+    drawText(26, 184, 0.42f, COLOR_TEXT_MUTED, "Videos are uploaded directly without re-encoding.");
 #endif
 }
 
@@ -306,7 +324,7 @@ void UI::renderBottomMain(const std::vector<TouchButton>& buttons) {
     }
 
     // Quick key guides at bottom
-    drawText(12, 218, 0.42f, COLOR_TEXT_MUTED, "(A) Sync  (X) Photos  (Y) Config  (START) Quit");
+    drawText(12, 218, 0.42f, COLOR_TEXT_MUTED, "(A) Sync  (X) Media  (Y) Config  (START) Quit");
 #endif
 }
 
@@ -318,11 +336,11 @@ void UI::renderBottomPhotos(const std::vector<std::string>& photoNames, size_t s
 
     drawRect(10, 10, 300, 140, COLOR_CARD);
     if (photoNames.empty()) {
-        drawText(20, 60, 0.48f, COLOR_GREEN, "All photos synced with Immich!");
+        drawText(20, 60, 0.48f, COLOR_GREEN, "All media synced with Immich!");
     } else {
         float y = 16.0f;
         for (size_t i = scrollOffset; i < photoNames.size() && i < scrollOffset + 6; i++) {
-            drawText(20, y, 0.42f, COLOR_TEXT, "[ ] %s", photoNames[i].c_str());
+            drawText(20, y, 0.42f, COLOR_TEXT, "%s", photoNames[i].c_str());
             y += 20.0f;
         }
     }

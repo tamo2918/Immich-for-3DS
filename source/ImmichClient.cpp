@@ -373,6 +373,11 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
     curl_mime_name(part, "assetData");
     curl_mime_filedata(part, photo.path.c_str());
     curl_mime_filename(part, photo.filename.c_str());
+    if (photo.mediaType == MediaType::VIDEO) {
+        curl_mime_type(part, "video/x-msvideo");
+    } else {
+        curl_mime_type(part, "image/jpeg");
+    }
 
     // 2. fileCreatedAt & fileModifiedAt
     std::string isoTime = photo.getIsoTime();
@@ -397,6 +402,20 @@ ImmichError ImmichClient::uploadAsset(const PhotoInfo& photo, std::string& outAs
 
     std::string response;
     setupCommonCurl(curl, url, headers);
+
+    // Dynamic timeout for large video/photo transfers
+    long uploadTimeout = (long)m_timeoutSec;
+    if (photo.fileSize > 0) {
+        long estimatedSec = (long)(photo.fileSize / (100 * 1024)) + 60; // 100KB/s baseline + 60s buffer
+        if (estimatedSec > uploadTimeout) {
+            uploadTimeout = estimatedSec;
+        }
+    }
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, uploadTimeout);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1000L); // 1KB/s
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);    // 30 seconds
+
     curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stringWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
