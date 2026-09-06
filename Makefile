@@ -47,7 +47,7 @@ LD       := $(PREFIX)g++
 SMDHTOOL := smdhtool
 MAKEROM  := makerom
 BANNERTOOL := bannertool
-3DSLINK  := 3dslink
+3DSLINK  := ./tools/3dslink
 
 # Directories
 BUILD_DIR := build
