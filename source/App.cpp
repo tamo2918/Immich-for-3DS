@@ -49,8 +49,10 @@ bool App::init() {
     Logger::init("sdmc:/3ds/Immich3DS/log.txt");
     Logger::info("Initializing Immich 3DS...");
 
-    // Load config
-    ConfigManager::load("sdmc:/3ds/Immich3DS/config.json", m_config);
+    // Load config (or save default template if not found)
+    if (!ConfigManager::load("sdmc:/3ds/Immich3DS/config.json", m_config)) {
+        ConfigManager::save("sdmc:/3ds/Immich3DS/config.json", m_config);
+    }
 
     // Initialize UI
     if (!m_ui.init()) {
