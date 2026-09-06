@@ -46,6 +46,8 @@ public:
     size_t getCurrentSyncIndex() const { return m_currentSyncIndex; }
     size_t getTotalSyncCount() const { return m_totalToSync; }
     float getCurrentFileProgress() const { return m_currentFileProgress; }
+    size_t getCurrentFileNow() const { return m_currentFileNow; }
+    size_t getCurrentFileTotal() const { return m_currentFileTotal; }
     std::string getCurrentFilename() const { return m_currentFilename; }
     std::string getLastError() const { return m_lastError; }
     const std::vector<PhotoInfo>& getUnsyncedPhotos() const { return m_unsyncedPhotos; }
@@ -65,6 +67,8 @@ private:
     size_t m_currentSyncIndex = 0;
     size_t m_totalToSync = 0;
     float m_currentFileProgress = 0.0f;
+    size_t m_currentFileNow = 0;
+    size_t m_currentFileTotal = 0;
     std::string m_currentFilename;
     std::string m_lastError;
     bool m_cancelRequested = false;

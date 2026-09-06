@@ -45,10 +45,17 @@ private:
     std::vector<TouchButton> m_settingsButtons;
     std::vector<TouchButton> m_galleryButtons;
 
+    bool m_syncInProgress = false;
+#ifdef __3DS__
+    Thread m_syncThread = nullptr;
+    static void syncThreadFunc(void* arg);
+#endif
+
     void setupButtons();
     void handleInput();
     void updateNetworkState();
     void testConnection();
+    void startSync();
     void runSync();
 };
 

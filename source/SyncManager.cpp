@@ -156,8 +156,14 @@ void SyncManager::scanLocalPhotos() {
 
 void SyncManager::uploadProgressCallback(size_t now, size_t total, void* user) {
     SyncManager* mgr = static_cast<SyncManager*>(user);
-    if (mgr && total > 0) {
-        mgr->m_currentFileProgress = (float)now / (float)total;
+    if (mgr) {
+        mgr->m_currentFileNow = now;
+        if (total > 0) {
+            mgr->m_currentFileTotal = total;
+            mgr->m_currentFileProgress = (float)now / (float)total;
+        } else if (mgr->m_currentFileTotal > 0) {
+            mgr->m_currentFileProgress = (float)now / (float)mgr->m_currentFileTotal;
+        }
     }
 }
 
@@ -255,6 +261,8 @@ bool SyncManager::performSync() {
         m_currentSyncIndex = i + 1;
         m_currentFilename = photo.filename;
         m_currentFileProgress = 0.0f;
+        m_currentFileNow = 0;
+        m_currentFileTotal = photo.fileSize;
 
         std::string assetId;
         bool duplicate = false;
@@ -293,6 +301,10 @@ bool SyncManager::performSync() {
     m_config.lastSyncTime = tbuf;
     ConfigManager::save("sdmc:/3ds/Immich3DS/config.json", m_config);
 
+    m_currentFilename.clear();
+    m_currentFileProgress = 0.0f;
+    m_currentFileNow = 0;
+    m_currentFileTotal = 0;
     m_state = SyncState::COMPLETED;
     Logger::info("Sync completed successfully! %zu photos uploaded.", actuallyNeedUpload.size());
     scanLocalPhotos();

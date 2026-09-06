@@ -87,13 +87,61 @@ void UI::drawRect(float x, float y, float w, float h, u32 color) {
 #endif
 }
 
-void UI::drawProgressBar(float x, float y, float w, float h, float progress, u32 fgColor, u32 bgColor) {
-    if (progress < 0.0f) progress = 0.0f;
-    if (progress > 1.0f) progress = 1.0f;
-    drawRect(x, y, w, h, bgColor);
-    if (progress > 0.0f) {
-        drawRect(x, y, w * progress, h, fgColor);
+#include <cmath>
+
+void UI::drawSpinner(float cx, float cy, float radius, u32 animFrame) {
+#ifdef __3DS__
+    const int numDots = 8;
+    for (int i = 0; i < numDots; i++) {
+        float angle = (float)i * (2.0f * 3.14159265f / (float)numDots) + ((float)animFrame * 0.12f);
+        float x = cx + cosf(angle) * radius;
+        float y = cy + sinf(angle) * radius;
+
+        float alpha = (float)(i + 1) / (float)numDots;
+        u8 r = (u8)(60.0f + 195.0f * alpha);
+        u8 g = (u8)(140.0f + 115.0f * alpha);
+        u32 color = C2D_Color32(r, g, 255, 255);
+
+        float dotRadius = 1.4f + alpha * 1.4f;
+        C2D_DrawCircleSolid(x, y, 0.5f, dotRadius, color);
     }
+#endif
+}
+
+void UI::drawAnimatedProgressBar(float x, float y, float w, float h, float progress, u32 animFrame, u32 fgColor, u32 bgColor) {
+    drawRect(x, y, w, h, bgColor);
+
+    if (progress <= 0.001f) {
+        // Indeterminate bouncing wave animation (e.g. scanning or checking server)
+        float cycle = (float)(animFrame % 80);
+        float t = (cycle < 40.0f) ? (cycle / 40.0f) : (2.0f - cycle / 40.0f);
+        float blockW = 60.0f;
+        float bx = x + (w - blockW) * t;
+        drawRect(bx, y, blockW, h, fgColor);
+        return;
+    }
+
+    if (progress > 1.0f) progress = 1.0f;
+    float filledW = w * progress;
+    if (filledW > 0.0f) {
+        drawRect(x, y, filledW, h, fgColor);
+
+        // Shimmer beam animation
+        float cycle = (float)(animFrame % 60) / 60.0f;
+        float shimmerX = x + (w * cycle);
+        float shimmerW = 32.0f;
+        if (shimmerX + shimmerW > x && shimmerX < x + filledW) {
+            float sx = (shimmerX < x) ? x : shimmerX;
+            float ex = (shimmerX + shimmerW > x + filledW) ? (x + filledW) : (shimmerX + shimmerW);
+            if (ex > sx) {
+                drawRect(sx, y, ex - sx, h, C2D_Color32(180, 225, 255, 220));
+            }
+        }
+    }
+}
+
+void UI::drawProgressBar(float x, float y, float w, float h, float progress, u32 fgColor, u32 bgColor) {
+    drawAnimatedProgressBar(x, y, w, h, progress, 0, fgColor, bgColor);
 }
 
 void UI::drawButton(const TouchButton& btn) {
@@ -113,7 +161,8 @@ void UI::renderTopMain(const std::string& serverStatus, bool connected,
                        u8 wifiStrength, size_t totalPhotos, size_t unsyncedPhotos,
                        const std::string& lastSyncTime, const std::string& stateText,
                        float overallProgress, float fileProgress,
-                       const std::string& currentFilename, const std::string& lastError) {
+                       const std::string& currentFilename, const std::string& lastError,
+                       u32 animFrame, bool isSyncing, size_t fileNow, size_t fileTotal) {
 #ifdef __3DS__
     C2D_TargetClear(m_topTarget, COLOR_BG);
     C2D_SceneBegin(m_topTarget);
@@ -145,16 +194,37 @@ void UI::renderTopMain(const std::string& serverStatus, bool connected,
     drawText(26, 136, 0.48f, COLOR_TEXT_MUTED, "Last Sync:");
     drawText(160, 136, 0.48f, COLOR_TEXT, "%s", lastSyncTime.c_str());
 
-    // Sync progress / status area
-    drawRect(15, 170, 370, 60, COLOR_CARD);
+    // Sync progress / status area (height 68)
+    drawRect(15, 168, 370, 66, COLOR_CARD);
+
     if (!lastError.empty()) {
         drawText(26, 176, 0.45f, COLOR_RED, "Error: %s", lastError.c_str());
-    } else if (!stateText.empty()) {
-        drawText(26, 176, 0.48f, COLOR_GREEN, "%s", stateText.c_str());
+    } else if (isSyncing) {
+        // Active syncing animations!
+        drawSpinner(362, 192, 9.0f, animFrame);
+
+        // Animated dots
+        int dotMod = (animFrame / 15) % 4;
+        const char* dotSuffix = (dotMod == 1) ? "." : (dotMod == 2) ? ".." : (dotMod == 3) ? "..." : "";
+
+        // Status text
+        drawText(26, 174, 0.46f, COLOR_GREEN, "%s%s", stateText.c_str(), dotSuffix);
+
         if (!currentFilename.empty()) {
-            drawText(26, 194, 0.42f, COLOR_TEXT_MUTED, "File: %s", currentFilename.c_str());
-            drawProgressBar(26, 212, 348, 8, fileProgress, COLOR_HEADER, COLOR_BG);
+            if (fileTotal > 0) {
+                int pct = (int)((fileNow * 100) / fileTotal);
+                if (pct > 100) pct = 100;
+                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "%s (%zu / %zu KB, %d%%)",
+                         currentFilename.c_str(), fileNow / 1024, fileTotal / 1024, pct);
+            } else {
+                drawText(26, 193, 0.40f, COLOR_TEXT_MUTED, "File: %s", currentFilename.c_str());
+            }
+            drawAnimatedProgressBar(26, 212, 348, 8, fileProgress, animFrame, COLOR_HEADER, COLOR_BG);
+        } else {
+            drawAnimatedProgressBar(26, 212, 348, 8, overallProgress, animFrame, COLOR_HEADER, COLOR_BG);
         }
+    } else if (!stateText.empty()) {
+        drawText(26, 178, 0.48f, COLOR_GREEN, "%s", stateText.c_str());
     } else {
         drawText(26, 185, 0.45f, COLOR_TEXT_MUTED, "Ready. Press [Sync Now] or (A) to synchronize.");
     }

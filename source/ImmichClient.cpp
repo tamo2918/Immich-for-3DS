@@ -30,7 +30,7 @@ static int xferInfoCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
     (void)dltotal;
     (void)dlnow;
     ProgressContext* ctx = static_cast<ProgressContext*>(clientp);
-    if (ctx && ctx->callback && ultotal > 0) {
+    if (ctx && ctx->callback) {
         ctx->callback((size_t)ulnow, (size_t)ultotal, ctx->user);
     }
     return 0;

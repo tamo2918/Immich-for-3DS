@@ -40,7 +40,8 @@ public:
                        u8 wifiStrength, size_t totalPhotos, size_t unsyncedPhotos,
                        const std::string& lastSyncTime, const std::string& stateText,
                        float overallProgress, float fileProgress,
-                       const std::string& currentFilename, const std::string& lastError);
+                       const std::string& currentFilename, const std::string& lastError,
+                       u32 animFrame = 0, bool isSyncing = false, size_t fileNow = 0, size_t fileTotal = 0);
 
     void renderTopPhotos(size_t total, size_t unsynced, const std::string& lastError);
     void renderTopSettings(const std::string& serverUrl, const std::string& maskedKey,
@@ -58,6 +59,8 @@ public:
     void drawText(float x, float y, float scale, u32 color, const char* format, ...);
     void drawRect(float x, float y, float w, float h, u32 color);
     void drawProgressBar(float x, float y, float w, float h, float progress, u32 fgColor, u32 bgColor);
+    void drawAnimatedProgressBar(float x, float y, float w, float h, float progress, u32 animFrame, u32 fgColor, u32 bgColor);
+    void drawSpinner(float cx, float cy, float radius, u32 animFrame);
     void drawButton(const TouchButton& btn);
 
 private:

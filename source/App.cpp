@@ -76,13 +76,21 @@ bool App::init() {
     // Run auto-sync if enabled
     if (m_config.autoSync && m_connected) {
         Logger::info("Auto-sync is enabled. Starting initial sync...");
-        runSync();
+        startSync();
     }
 
     return true;
 }
 
 void App::cleanup() {
+#ifdef __3DS__
+    if (m_syncThread) {
+        if (m_syncMgr) m_syncMgr->cancelSync();
+        threadJoin(m_syncThread, U64_MAX);
+        threadFree(m_syncThread);
+        m_syncThread = nullptr;
+    }
+#endif
     ImmichClient::globalCleanup();
     m_ui.cleanup();
     Logger::info("Immich 3DS cleaned up.");
@@ -139,10 +147,48 @@ void App::testConnection() {
     m_testSuccess = true;
 }
 
-void App::runSync() {
-    if (m_syncMgr->getState() != SyncState::IDLE && m_syncMgr->getState() != SyncState::COMPLETED) {
+#ifdef __3DS__
+void App::syncThreadFunc(void* arg) {
+    App* app = static_cast<App*>(arg);
+    if (app && app->m_syncMgr) {
+        app->m_syncMgr->performSync();
+    }
+    if (app) {
+        app->m_syncInProgress = false;
+    }
+    threadExit(0);
+}
+#endif
+
+void App::startSync() {
+    if (m_syncInProgress) {
+        Logger::info("Cancel requested by user");
+        m_syncMgr->cancelSync();
         return;
     }
+    if (m_syncMgr->getState() != SyncState::IDLE && m_syncMgr->getState() != SyncState::COMPLETED && m_syncMgr->getState() != SyncState::FAILED) {
+        return;
+    }
+
+#ifdef __3DS__
+    s32 prio = 0x30;
+    svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+    int workerPrio = (prio < 0x3E) ? prio + 1 : 0x3E;
+    m_syncInProgress = true;
+    m_syncThread = threadCreate(syncThreadFunc, this, 64 * 1024, workerPrio, -2, false);
+    if (!m_syncThread) {
+        m_syncInProgress = false;
+        Logger::error("Failed to create worker thread, running synchronously");
+        runSync();
+    }
+#else
+    m_syncInProgress = true;
+    runSync();
+    m_syncInProgress = false;
+#endif
+}
+
+void App::runSync() {
     m_syncMgr->performSync();
 }
 
@@ -169,7 +215,7 @@ void App::handleInput() {
     // View-specific input handling
     if (m_currentView == UIView::MAIN) {
         if (kDown & KEY_A) {
-            runSync();
+            startSync();
         } else if (kDown & KEY_X) {
             m_currentView = UIView::PHOTOS;
         } else if (kDown & KEY_Y) {
@@ -177,8 +223,8 @@ void App::handleInput() {
         }
 
         if (kDown & KEY_TOUCH) {
-            if (m_mainButtons.size() > 0 && m_mainButtons[0].contains(touch.px, touch.py)) { // Sync Now
-                runSync();
+            if (m_mainButtons.size() > 0 && m_mainButtons[0].contains(touch.px, touch.py)) { // Sync Now / Cancel Sync
+                startSync();
             } else if (m_mainButtons.size() > 1 && m_mainButtons[1].contains(touch.px, touch.py)) { // Photos
                 m_currentView = UIView::PHOTOS;
             } else if (m_mainButtons.size() > 2 && m_mainButtons[2].contains(touch.px, touch.py)) { // Settings
@@ -193,12 +239,14 @@ void App::handleInput() {
         if (kDown & KEY_B) {
             m_currentView = UIView::MAIN;
         } else if (kDown & KEY_A) {
-            runSync();
+            m_currentView = UIView::MAIN;
+            startSync();
         }
 
         if (kDown & KEY_TOUCH) {
             if (m_photoButtons.size() > 0 && m_photoButtons[0].contains(touch.px, touch.py)) { // Sync All
-                runSync();
+                m_currentView = UIView::MAIN;
+                startSync();
             } else if (m_photoButtons.size() > 1 && m_photoButtons[1].contains(touch.px, touch.py)) { // Back
                 m_currentView = UIView::MAIN;
             }
@@ -238,7 +286,7 @@ void App::handleInput() {
 }
 
 void App::run() {
-    int frameCount = 0;
+    u32 frameCount = 0;
     while (m_running) {
 #ifdef __3DS__
         if (!aptMainLoop()) break;
@@ -246,8 +294,27 @@ void App::run() {
 
         handleInput();
 
+#ifdef __3DS__
+        if (m_syncThread && !m_syncInProgress) {
+            threadJoin(m_syncThread, U64_MAX);
+            threadFree(m_syncThread);
+            m_syncThread = nullptr;
+        }
+#endif
+
         if (++frameCount % 60 == 0) {
             updateNetworkState();
+        }
+
+        // Dynamically update Sync button label & color on main screen
+        if (!m_mainButtons.empty()) {
+            if (m_syncInProgress) {
+                m_mainButtons[0].label = "  Cancel Sync";
+                m_mainButtons[0].bgColor = C2D_Color32(180, 40, 40, 255);
+            } else {
+                m_mainButtons[0].label = "  Sync Now";
+                m_mainButtons[0].bgColor = C2D_Color32(38, 86, 214, 255);
+            }
         }
 
         // Render Frame
@@ -274,7 +341,9 @@ void App::run() {
                                m_syncMgr->getUnsyncedPhotosCount(),
                                m_config.lastSyncTime, stateText,
                                overallProg, m_syncMgr->getCurrentFileProgress(),
-                               m_syncMgr->getCurrentFilename(), m_syncMgr->getLastError());
+                               m_syncMgr->getCurrentFilename(), m_syncMgr->getLastError(),
+                               frameCount, m_syncInProgress,
+                               m_syncMgr->getCurrentFileNow(), m_syncMgr->getCurrentFileTotal());
 
             m_ui.renderBottomMain(m_mainButtons);
         } else if (m_currentView == UIView::PHOTOS) {
