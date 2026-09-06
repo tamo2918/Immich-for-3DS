@@ -1,0 +1,7 @@
+{
+  "server_url": "http://192.168.1.100:2283",
+  "api_key": "YOUR_IMMICH_API_KEY",
+  "ssl_verify": true,
+  "auto_sync": false,
+  "timeout_sec": 15
+}

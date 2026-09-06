@@ -1,3 +1,9 @@
+# Configuration & Credentials (NEVER commit real credentials)
+config.json
+sync.json
+*.dmp
+*.log
+
 # Build output
 build/
 *.elf
@@ -7,12 +13,13 @@ build/
 *.o
 *.map
 
-# Test binaries and temp files
+# Test binaries and temporary files
 run_tests
 run_all_tests
 test_core
+test_runner
+tests/test_runner
 *.tmp
-*.log
 tests/mock_dcim/
 tests/test_file.bin
 tests/test_config.json
@@ -22,4 +29,9 @@ tests/test_sync.json
 .DS_Store
 .vscode/
 .idea/
+compile_commands.json
+*.tar.gz
+*.zip
+
+# Local tools
 tools/3dslink

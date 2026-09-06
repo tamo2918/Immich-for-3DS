@@ -1,6 +1,11 @@
 # Immich 3DS
 
-**Nintendo 3DS 向けネイティブ Immich クライアント（Homebrew）**
+**Nintendo 3DS 向け非公式ネイティブ Immich クライアント（Homebrew）**
+
+> [!NOTE]
+> **免責事項 / Disclaimers**:
+> - **Immich**: 本プロジェクトは個人によって開発された非公式（Third-party）のオープンソースクライアントです。Immich または FUTO との提携、承認、公式な関係は一切ありません。"Immich" は各権利者の商標です。
+> - **Nintendo**: 本ソフトウェアは自作ソフト（Homebrew）です。任天堂株式会社（Nintendo Co., Ltd.）との提携、承認、関係はありません。"Nintendo 3DS" は任天堂株式会社の登録商標です。
 
 CFW（boot9strap + Luma3DS）を導入した Nintendo 3DS / 3DS LL から、自宅の [Immich](https://immich.app/) サーバーへ Wi-Fi 経由で写真を自動同期・閲覧できるネイティブ C++ クライアントです。
 
@@ -139,7 +144,7 @@ PC と 3DS が同一 Wi-Fi に接続されている場合、SD カードを抜�
 
 ## 設定ファイル (`config.json`) の準備
 
-初回起動時、または PC 上で事前に設定ファイルを作成する場合、SD カードの `sdmc:/3ds/Immich3DS/config.json` に以下を記述します：
+初回起動時にデフォルト設定ファイルが自動生成されます。また、同梱のテンプレート [`config.example.json`](config.example.json) をコピーして、SD カードの `sdmc:/3ds/Immich3DS/config.json` に配置することもできます：
 
 ```json
 {
@@ -151,12 +156,12 @@ PC と 3DS が同一 Wi-Fi に接続されている場合、SD カードを抜�
 }
 ```
 
-* `server_url`: 自宅サーバーの URL（末尾スラッシュ不要）
-  * LAN 内の場合: `http://192.168.1.100:2283`
-  * 外部公開 / ドメインの場合: `https://photos.example.com`
-* `api_key`: Immich で発行した API キー
-* `ssl_verify`: HTTPS 接続時の証明書検証（自己署名証明書をお使いの場合は `false` に設定）
-* `auto_sync`: アプリ起動時に未同期写真を自動でバックアップするかどうか
+* `server_url`: 自宅 Immich サーバーの URL（末尾スラッシュ不要）
+  * **LAN 内接続（信頼できる自宅Wi-Fiのみ）**: `http://192.168.1.100:2283`
+  * **外部・ドメイン経由**: `https://photos.example.com` （※外部接続時は必ず HTTPS をご利用ください）
+* `api_key`: Immich Web UI で発行した API キー（写真アップロード権限のみ付与した個別キーを推奨）
+* `ssl_verify`: HTTPS 接続時の証明書検証（自宅オレオレ証明書で接続する場合は `false` に設定）
+* `auto_sync`: アプリ起動時に未同期写真を自動でバックアップするかどうか (`true`/`false`)
 * `timeout_sec`: 通信タイムアウト秒数（標準: 15）
 
 ---
@@ -205,14 +210,24 @@ make docker-cia
 | **SSL certificate problem (Error 60)** | 自宅サーバーでオレオレ証明書をご利用の場合、設定画面で `SSL Verify` を **OFF** に切り替えるか、`config.json` で `"ssl_verify": false` に設定してください。 |
 | **SD card error** | SD カードの空き容量、および書き込み禁止スイッチ（SD アダプタ使用時）を確認してください。ログは `sdmc:/3ds/Immich3DS/log.txt` に出力されます。 |
 
-### セキュリティに関する注意事項
-* Nintendo 3DS のハードウェアには Secure Enclave 等の暗号化ストレージが存在しないため、`config.json` に保存された API キーは平文で SD カード内に保持されます。
-* 万一の 3DS 紛失時に備え、Immich 側で「写真アップロードに必要な最低限の権限」のみを付与した API キーを使用することを強く推奨します。
+### セキュリティに関する重要事項
+* **APIキーの安全な管理**:
+  * Nintendo 3DS ハードウェアには暗号化セキュア領域が存在しないため、`config.json` の API キーは SD カード上に平文で保存されます。
+  * `config.json` ファイルを GitHub 等の公開リポジトリにアップロードしたり、他者と共有したり絶対にしないでください。
+  * 万一の 3DS 紛失や盗難に備え、管理者権限のキーではなく「写真アップロードに必要な権限のみ」を付与した専用 API キーを使用してください。
+* **通信の安全性（HTTP 利用時の注意）**:
+  * 暗号化されない `http://` 通信では、同一ネットワーク上の通信傍受により API キーや写真データが漏洩するリスクがあります。
+  * 平文 HTTP は信頼できるご自身の自宅 LAN / Wi-Fi 内でのみ使用し、公衆無線 LAN やインターネット経由での平文 HTTP 接続は行わないでください。
 
 ---
 
-## ライセンス
+## ライセンス & クレジット
 
-* **Immich 3DS**: MIT License
-* **cJSON**: Copyright (c) 2009-2017 Dave Gamble and cJSON contributors (MIT License)
-* **sha1**: Standard FIPS 180-1 implementation (Public Domain)
+* **Immich 3DS**: [MIT License](LICENSE) (c) 2026 Immich 3DS Contributors
+* 外部ライブラリのライセンス詳細および帰属表示は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) をご覧ください。
+  * **cJSON**: MIT License (Copyright (c) 2009-2017 Dave Gamble and cJSON contributors)
+  * **sha1**: Public Domain (Steve Reid)
+  * **libctru / citro2d / citro3d**: zlib/libpng License
+  * **3ds-curl**: curl License
+  * **mbedTLS**: Apache License 2.0
+  * **Mozilla Root CA Bundle**: MPL 2.0
