@@ -101,21 +101,15 @@ $(TARGET).3dsx: $(TARGET).elf $(TARGET).smdh
 #---------------------------------------------------------------------------------
 $(BUILD_DIR)/banner.bin: $(BANNER) | $(BUILD_DIR)
 	@echo "  BANNER $@"
-	@$(BANNERTOOL) makebanner -i $(BANNER) -o $@
+	@python3 -c "import wave; w = wave.open('$(BUILD_DIR)/silent.wav', 'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(22050); w.writeframes(b'\x00' * 4410); w.close()"
+	@$(BANNERTOOL) makebanner -i $(BANNER) -a $(BUILD_DIR)/silent.wav -o $@
 
 cia: $(TARGET).cia
 
 $(TARGET).cia: $(TARGET).elf $(TARGET).smdh $(BUILD_DIR)/banner.bin Immich3DS.rsf
 	@echo "  MAKEROM $@"
-	@if [ -d "$(ROMFS_DIR)" ]; then \
-		$(3DSXTOOL) $(TARGET).elf $(BUILD_DIR)/romfs.bin --romfs=$(ROMFS_DIR); \
-		$(MAKEROM) -f cia -o $@ -elf $(TARGET).elf -rsf Immich3DS.rsf \
-			-icon $(TARGET).smdh -banner $(BUILD_DIR)/banner.bin \
-			-romfs $(BUILD_DIR)/romfs.bin; \
-	else \
-		$(MAKEROM) -f cia -o $@ -elf $(TARGET).elf -rsf Immich3DS.rsf \
-			-icon $(TARGET).smdh -banner $(BUILD_DIR)/banner.bin; \
-	fi
+	@$(MAKEROM) -f cia -o $@ -elf $(TARGET).elf -rsf Immich3DS.rsf \
+		-icon $(TARGET).smdh -banner $(BUILD_DIR)/banner.bin
 	@echo "CIA build complete: $(TARGET).cia"
 
 #---------------------------------------------------------------------------------

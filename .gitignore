@@ -34,4 +34,4 @@ compile_commands.json
 *.zip
 
 # Local tools
-tools/3dslink
+tools/

@@ -2,6 +2,8 @@
 
 **Nintendo 3DS 向け非公式ネイティブ Immich クライアント（Homebrew）**
 
+[English Documentation](#english) | **日本語**
+
 > [!NOTE]
 > **免責事項 / Disclaimers**:
 > - **Immich**: 本プロジェクトは個人によって開発された非公式（Third-party）のオープンソースクライアントです。Immich または FUTO との提携、承認、公式な関係は一切ありません。"Immich" は各権利者の商標です。
@@ -234,3 +236,197 @@ make docker-cia
   * **3ds-curl**: curl License
   * **mbedTLS**: Apache License 2.0
   * **Mozilla Root CA Bundle**: MPL 2.0
+
+---
+
+<a name="english"></a>
+# English Documentation
+
+**Unofficial Native Immich Client for Nintendo 3DS (Homebrew)**
+
+**[English](#english) | [日本語 (Japanese)](#immich-3ds)**
+
+> [!NOTE]
+> **Disclaimers**:
+> - **Immich**: This project is an unofficial, third-party open-source client developed independently. It is not affiliated with, endorsed by, or associated with Immich or FUTO. "Immich" is a trademark of its respective owners.
+> - **Nintendo**: This software is homebrew. It is not affiliated with, endorsed by, or associated with Nintendo Co., Ltd. "Nintendo 3DS" is a registered trademark of Nintendo Co., Ltd.
+
+Immich 3DS is a native C++ homebrew client for custom firmware (boot9strap + Luma3DS) Nintendo 3DS / 3DS LL systems that seamlessly backs up photos and standard camera videos to your self-hosted [Immich](https://immich.app/) server over Wi-Fi.
+
+Unlike a web app running in a browser, Immich 3DS is built natively to take full advantage of the 3DS hardware (ARM11 MPCore, PICA200 GPU, touchscreen, and direct SD card DCIM access).
+
+---
+
+## Key Features
+
+* **Complete Nintendo 3DS Camera Support (Photos & Videos)**:
+  * Automatically scans DCIM directory (`sdmc:/DCIM/` including subdirectories such as `100NIN03`).
+  * Supports standard **JPEG photos (`.JPG` / `.JPEG`)** and 3DS camera **AVI videos (`.AVI`)**.
+  * **No video re-encoding on 3DS**: Original Motion JPEG + IMA ADPCM AVI video files are streamed directly to the Immich server. Transcoding and web playback thumbnails are generated server-side.
+  * **Strict Exclusion of MPO 3D Photos & Unsupported Formats**: 3DS-proprietary MPO 3D photos and other unsupported file extensions are safely filtered out and ignored.
+* **Smart Deduplication**:
+  * Local sync database (`sync.json`) tracks synced files, file size, timestamps, and media types.
+  * Server-side pre-upload checks (`POST /api/assets/bulk-upload-check`) using SHA-1 checksums prevent redundant uploads and save battery.
+* **Old 3DS Hardware Optimization & Dynamic Timeouts**:
+  * Designed to run reliably within the tight 64MB RAM and 268MHz CPU limits of the original Old 3DS / 3DS LL.
+  * Streaming upload (`curl_mime_filedata`) and 32KB chunked SHA-1 hashing avoid loading full files into memory, preventing Out of Memory (OOM) errors.
+  * Dynamic transfer timeout calculation and low-speed disconnect protection guard against sleep mode and intermittent Wi-Fi drops.
+* **Robust Networking**:
+  * Backed by `3ds-curl` and `mbedTLS` for secure HTTPS transfers with Mozilla root CA bundle (`cacert.pem`) embedded in RomFS.
+  * Supports LAN-based plain HTTP or self-signed certificates with a toggleable `SSL Verify` option in settings.
+* **Dual-Screen Dedicated Interface**:
+  * **Top Screen (400x240)**: Connection status, Wi-Fi signal strength, photo/video inventory statistics, real-time sync progress bar, and active file indicators (`[JPG]` / `[AVI]`).
+  * **Bottom Screen (320x240 / Touch)**: Large touch-friendly controls (`Sync Now`, `Media on SD Card`, `Settings`, `Gallery`, `Exit`).
+  * Full physical button control support (D-Pad, A/B/X/Y, START).
+
+---
+
+## UI Layout
+
+### Top Screen (400x240)
+```text
++--------------------------------------------------+
+| Immich 3DS                          Wi-Fi: [|||] |
++--------------------------------------------------+
+|  [●] Server: Connected                           |
++--------------------------------------------------+
+|  Media on 3DS: 15 (12 Photos, 3 Videos)          |
+|  Not Synced:   3 (P: 2, V: 1)                    |
+|  Last Sync:    2026/09/06 21:30                  |
++--------------------------------------------------+
+|  Uploading Video 2 / 3...                        |
+|  [AVI] HNI_0023.AVI (2400 / 12000 KB, 20%)       |
+|  [========================>                      ]
++--------------------------------------------------+
+```
+
+### Bottom Screen (320x240 / Touch-Enabled)
+```text
++----------------------------------------+
+|                                        |
+|             [  Sync Now  ]             |
+|                                        |
++----------------------------------------+
+|         [  Media on SD Card ]          |
++-------------------+--------------------+
+|    [ Settings ]   |    [  Gallery  ]   |
++-------------------+--------------------+
+|          [ Exit Immich 3DS ]           |
++----------------------------------------+
+|  (A) Sync  (X) Media  (Y) Config       |
++----------------------------------------+
+```
+
+---
+
+## System Requirements
+
+### 3DS Console
+* **Compatible Models**: Nintendo 3DS, 3DS LL, 2DS, New 3DS, New 3DS LL, New 2DS LL (Target baseline: **Old 3DS**)
+* **Custom Firmware**: boot9strap + Luma3DS
+* **SD Card**: FAT32 formatted
+* **Wi-Fi**: 2.4GHz 802.11b/g network
+
+### Immich Server
+* Immich v1.110.0 or higher (**v3.x API recommended**)
+* LAN HTTP access (`http://192.168.x.x:2283`) or reverse-proxy HTTPS (`https://photos.example.com`)
+
+---
+
+## Server Setup & API Key Configuration
+
+1. Log into your Immich Web UI.
+2. Go to **Account Settings** → **API Keys** → **New API Key**.
+3. Name it (e.g. `Nintendo 3DS`).
+4. **Recommended Permissions**:
+   * Minimum: `asset.upload` (uploading media & deduplication checks)
+   * Status checking: `user.read` (displays username upon connection)
+   * Gallery view: `asset.read` (fetches remote asset lists & thumbnails)
+
+---
+
+## Installation (3 Methods)
+
+### Method 1: FBI QR Code Install (Recommended)
+Install the standalone CIA package directly onto your 3DS HOME Menu using FBI:
+1. Launch **FBI** on your Nintendo 3DS.
+2. Select **Remote Install** → **Scan QR Code**.
+3. Scan the QR code from the latest release in [GitHub Releases](https://github.com/tamo2918/Immich-for-3DS/releases).
+4. Launch "Immich 3DS" directly from your 3DS HOME Menu.
+
+### Method 2: Wireless Transfer via 3dslink (Development / Testing)
+1. Open the **Homebrew Launcher** on your 3DS and press **Y** to activate NetLoader.
+2. From your computer, run:
+   ```bash
+   make send IP=192.168.x.x
+   ```
+3. The app will be streamed and launched automatically.
+
+### Method 3: Manual SD Card Installation (.3dsx)
+1. Download `Immich3DS.3dsx` and `Immich3DS.smdh` from [GitHub Releases](https://github.com/tamo2918/Immich-for-3DS/releases).
+2. Copy them to your SD card under `/3ds/Immich3DS/`:
+   ```text
+   sdmc:/
+   └── 3ds/
+       └── Immich3DS/
+           ├── Immich3DS.3dsx
+           └── Immich3DS.smdh
+   ```
+3. Launch via the Homebrew Launcher.
+
+---
+
+## Configuration (`config.json`)
+
+A default configuration is automatically generated on first launch. You can also copy the bundled [`config.example.json`](config.example.json) to `sdmc:/3ds/Immich3DS/config.json`:
+
+```json
+{
+  "server_url": "https://photos.example.com",
+  "api_key": "your_immich_api_key_here",
+  "ssl_verify": true,
+  "auto_sync": false,
+  "timeout_sec": 15
+}
+```
+
+* `server_url`: Your Immich server address without trailing slashes.
+  * Local LAN: `http://192.168.1.100:2283`
+  * External HTTPS: `https://photos.example.com`
+* `api_key`: Your Immich API Key.
+* `ssl_verify`: Set to `false` if using a self-signed certificate on your local LAN.
+* `auto_sync`: Set to `true` to immediately start syncing on launch.
+* `timeout_sec`: Network request timeout in seconds (default: 15).
+
+---
+
+## Building from Source
+
+### Using devkitPro (Native)
+```bash
+sudo dkp-pacman -S 3ds-dev 3ds-curl 3ds-mbedtls 3ds-zlib 3ds-citro2d 3ds-citro3d
+make          # Build .3dsx and .smdh
+make cia      # Build .cia package (requires makerom and bannertool)
+```
+
+### Using Docker (Reproducible 1-Command Build)
+```bash
+make docker   # Builds Immich3DS.3dsx inside the official devkitPro container
+```
+
+---
+
+## Security & Best Practices
+
+* **API Key Storage**: Because the Nintendo 3DS lacks a hardware-backed secure enclave, credentials in `config.json` are stored as plaintext on the SD card.
+  * Never commit or share your `config.json`.
+  * Use a dedicated API key limited to `asset.upload`.
+* **Plaintext HTTP**: Connecting over unencrypted HTTP sends API keys and images in the clear. Only use plain HTTP on your trusted home Wi-Fi.
+
+---
+
+## License & Third-Party Notices
+
+* **Immich 3DS**: [MIT License](LICENSE) (c) 2026 Immich 3DS Contributors
+* See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full licensing terms of third-party dependencies (cJSON, SHA-1, libctru, citro2d, citro3d, curl, mbedTLS, Mozilla CA).
+
